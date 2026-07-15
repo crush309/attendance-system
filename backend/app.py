@@ -533,5 +533,11 @@ def startup():
     init_db()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 80))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    import os
+    # 强制读取Railway分配的环境端口
+    listen_port = int(os.getenv("PORT", 80))
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=listen_port
+    )
