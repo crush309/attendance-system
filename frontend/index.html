@@ -362,31 +362,35 @@ tr.expand-row td{background:var(--bg-primary);padding:16px 20px}
         </div>
       </div>
 
-      <!-- Users -->
-      <div v-if="activePage==='users'">
-        <div class="page-header"><h1>用户管理 <span v-if="!canEdit('manage_users')" class="readonly-tag">👁 仅查看</span></h1><p>查看注册用户{{canEdit('manage_users')?'，管理权限':''}}</p></div>
-        <div class="card">
-          <div class="card-title">👥 注册用户 ({{usersList.length}})</div>
-          <ul class="user-list">
-            <li v-for="u in usersList" :key="u.id" class="user-item">
-              <div class="user-info">
-                <div class="user-avatar"><img v-if="u.avatar" :src="u.avatar"><span v-else>{{(u.nickname||u.username).charAt(0).toUpperCase()}}</span></div>
-                <div>
-                  <div class="user-name">{{u.nickname||u.username}} <span v-if="u.role==='admin'" class="badge badge-info" style="font-size:10px">管理员</span></div>
-                  <div class="user-meta">@{{u.username}} · {{u.created_at||'—'}}</div>
-                  <div v-if="u.role!=='admin'" style="margin-top:4px">
-                    <span v-if="u.permissions?.edit_rules" class="badge badge-success" style="font-size:10px">编辑规则</span>
-                    <span v-if="u.permissions?.edit_groups" class="badge badge-success" style="font-size:10px">管理分组</span>
-                    <span v-if="u.permissions?.manage_users" class="badge badge-success" style="font-size:10px">管理用户</span>
-                    <span v-if="!u.permissions?.edit_rules&&!u.permissions?.edit_groups&&!u.permissions?.manage_users" style="font-size:11px;color:var(--text-muted)">无特殊权限</span>
-                  </div>
-                </div>
-              </div>
-              <button v-if="canEdit('manage_users') && u.role!=='admin'" class="btn btn-secondary btn-xs" @click="openPerm(u)">⚙️ 权限</button>
-            </li>
-          </ul>
+<!-- Users -->
+<div v-if="activePage==='users'">
+  <div class="page-header"><h1>用户管理 <span v-if="!canEdit('manage_users')" class="readonly-tag">👁 仅查看</span></h1><p>查看注册用户{{canEdit('manage_users')?'，管理权限':''}}</p></div>
+  <div class="card">
+    <div class="card-title">👥 注册用户 ({{usersList.length}})</div>
+    <ul class="user-list">
+      <li v-for="u in usersList" :key="u.id" class="user-item">
+        <div class="user-info">
+          <div class="user-avatar"><img v-if="u.avatar" :src="u.avatar"><span v-else>{{(u.nickname||u.username).charAt(0).toUpperCase()}}</span></div>
+          <div>
+            <div class="user-name">{{u.nickname||u.username}} <span v-if="u.role==='admin'" class="badge badge-info" style="font-size:10px">管理员</span></div>
+            <div class="user-meta">@{{u.username}} · {{u.created_at||'—'}}</div>
+            <div v-if="u.role!=='admin'" style="margin-top:4px">
+              <span v-if="u.permissions?.edit_rules" class="badge badge-success" style="font-size:10px">编辑规则</span>
+              <span v-if="u.permissions?.edit_groups" class="badge badge-success" style="font-size:10px">管理分组</span>
+              <span v-if="u.permissions?.manage_users" class="badge badge-success" style="font-size:10px">管理用户</span>
+              <span v-if="!u.permissions?.edit_rules&&!u.permissions?.edit_groups&&!u.permissions?.manage_users" style="font-size:11px;color:var(--text-muted)">无特殊权限</span>
+            </div>
+          </div>
         </div>
-      </div>
+        <div style="display:flex; gap:8px;">
+          <button v-if="canEdit('manage_users') && u.role!=='admin'" class="btn btn-secondary btn-xs" @click="openPerm(u)">⚙️ 权限</button>
+          <!-- ✅ 新增删除按钮 -->
+          <button v-if="canEdit('manage_users') && u.role!=='admin'" class="btn btn-danger btn-xs" @click="deleteUser(u.id)">🗑️ 删除</button>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
 
       <!-- Profile -->
       <div v-if="activePage==='profile'">
@@ -576,6 +580,16 @@ createApp({
 
     function openPerm(u){permUser.value=u;permRules.value=!!(u.permissions&&u.permissions.edit_rules);permGroups.value=!!(u.permissions&&u.permissions.edit_groups);permUsers.value=!!(u.permissions&&u.permissions.manage_users);showPerm.value=true}
     async function savePerm(){try{await api('/api/users/'+permUser.value.id+'/permissions',{method:'PUT',body:{permissions:{edit_rules:permRules.value,edit_groups:permGroups.value,manage_users:permUsers.value}}});showPerm.value=false;await loadUsers();showToast('权限已更新')}catch(e){showToast(e.message,'error')}}
+    async function deleteUser(uid) {
+  if (!confirm('确定要删除该用户吗？此操作不可撤销！')) return;
+  try {
+    await api('/api/users/' + uid, { method: 'DELETE' });
+    await loadUsers(); // 刷新用户列表
+    showToast('用户已删除');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
     async function loadUsers(){try{usersList.value=await(await api('/api/users')).json()}catch{}}
 
     async function handleFileUpload(f){
@@ -671,7 +685,7 @@ createApp({
       showMerge,mergeFiles,mergeLoading,
       canEdit,handleLogin,logout,saveRules,addPeriod,rmPeriod,
       createGroup,deleteGroup,doAssign,toggleAll,viewMembers,empName,rmFromGroup,
-      openPerm,savePerm,handleFileSelect,handleDrop,exportExcel,sortBy,sortIcon,toggle,
+      openPerm,deleteUser,savePerm,handleFileSelect,handleDrop,exportExcel,sortBy,sortIcon,toggle,
       showToast,saveProfile,changePassword,handleAvatar,handleMergeFileSelect,handleMergeDrop,doMergeExport,renderCharts};
   }
 }).mount('#app');

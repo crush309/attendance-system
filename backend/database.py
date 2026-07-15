@@ -282,3 +282,21 @@ def get_employees_in_group(group_id: int) -> List[str]:
     c.execute("SELECT emp_id FROM employee_groups WHERE group_id = ?", (group_id,))
     rows = [r["emp_id"] for r in c.fetchall()]
     conn.close(); return rows
+
+def delete_user(uid: int) -> bool:
+    """删除指定ID的用户，同时清理其在 employee_groups 中的关联"""
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        # 先删除分组关联（employee_groups 表）
+        c.execute("DELETE FROM employee_groups WHERE emp_id = ?", (str(uid),))
+        # 再删除用户本身
+        c.execute("DELETE FROM users WHERE id = ?", (uid,))
+        conn.commit()
+        affected = c.rowcount  # 删除的用户行数
+        conn.close()
+        return affected > 0
+    except Exception:
+        conn.rollback()
+        conn.close()
+        raise
