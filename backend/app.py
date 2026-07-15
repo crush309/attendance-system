@@ -1,6 +1,7 @@
 import os
 import uuid
 import uvicorn
+from contextlib import asynccontextmanager  # 新增导入
 from datetime import datetime, timedelta
 from typing import List, Optional
 from urllib.parse import quote
@@ -28,7 +29,20 @@ TOKEN_EXPIRE_HOURS = 24
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app = FastAPI(title="考勤数据分析系统")
+
+# ── Lifespan 事件（替代 @app.on_event("startup")） ──
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时执行
+    print("应用启动，初始化数据库...")
+    init_db()
+    yield
+    # 关闭时执行（如有需要可添加清理逻辑）
+    print("应用关闭，执行清理...")
+
+
+# ── 创建 FastAPI 实例，传入 lifespan ──
+app = FastAPI(title="考勤数据分析系统", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -528,10 +542,8 @@ def serve_index():
     resp.headers["Expires"] = "0"
     return resp
 
-@app.on_event("startup")
-def startup():
-    init_db()
 
+# ── 本地启动（完全保留） ──
 if __name__ == "__main__":
     import os
     # 强制读取Railway分配的环境端口
