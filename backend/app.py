@@ -1,4 +1,7 @@
 import os
+port = int(os.environ.get("PORT", 80))
+app.run(host="0.0.0.0", port=port, debug=False)
+
 import uuid
 from datetime import datetime, timedelta
 from typing import List, Optional
