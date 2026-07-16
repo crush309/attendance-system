@@ -183,6 +183,17 @@ def api_update_permissions(uid: int, req: PermissionsUpdate, authorization: str 
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"message": "权限已更新", "permissions": perms}
 
+@app.delete("/api/users/{uid}")
+def delete_user_api(uid: int, authorization: str = Header(None, alias="Authorization")):
+    payload = get_payload(authorization)
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可删除用户")
+    if uid == payload["uid"]:
+        raise HTTPException(status_code=400, detail="不能删除自己的账号")
+    if not delete_user(uid):
+        raise HTTPException(status_code=404, detail="用户不存在")
+    return {"message": "用户已删除"}
+
 
 # ── Upload ──
 

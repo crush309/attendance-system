@@ -288,12 +288,15 @@ def delete_user(uid: int) -> bool:
     conn = get_conn()
     c = conn.cursor()
     try:
+        c.execute("SELECT id FROM users WHERE id = ?", (uid,))
+        if not c.fetchone():
+            conn.close()
+            return False
         c.execute("DELETE FROM employee_groups WHERE emp_id = ?", (str(uid),))
         c.execute("DELETE FROM users WHERE id = ?", (uid,))
         conn.commit()
-        ok = c.rowcount > 0
         conn.close()
-        return ok
+        return True
     except Exception:
         conn.rollback()
         conn.close()
