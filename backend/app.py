@@ -1,7 +1,5 @@
 import os
 import uuid
-import uvicorn
-from contextlib import asynccontextmanager  # 新增导入
 from datetime import datetime, timedelta
 from typing import List, Optional
 from urllib.parse import quote
@@ -19,6 +17,7 @@ from database import (
     create_group, get_all_groups, delete_group,
     bulk_assign_employees, remove_employee_from_group,
     get_employee_group_map, get_employees_in_group,
+    delete_user,
 )
 from attendance_parser import parse_attendance_file
 
@@ -29,20 +28,7 @@ TOKEN_EXPIRE_HOURS = 24
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-
-# ── Lifespan 事件（替代 @app.on_event("startup")） ──
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 启动时执行
-    print("应用启动，初始化数据库...")
-    init_db()
-    yield
-    # 关闭时执行（如有需要可添加清理逻辑）
-    print("应用关闭，执行清理...")
-
-
-# ── 创建 FastAPI 实例，传入 lifespan ──
-app = FastAPI(title="考勤数据分析系统", lifespan=lifespan)
+app = FastAPI(title="考勤数据分析系统")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -196,20 +182,6 @@ def api_update_permissions(uid: int, req: PermissionsUpdate, authorization: str 
     if not update_user_permissions(uid, perms):
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"message": "权限已更新", "permissions": perms}
-
-@app.delete("/api/users/{uid}")
-def delete_user_api(uid: int, authorization: str = Header(None, alias="Authorization")):
-    # 1. 验证管理员身份（仅 admin 角色允许）
-    payload = get_payload(authorization)
-    if payload.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="仅管理员可删除用户")   
-    # 2. 禁止删除自己
-    if uid == payload["uid"]:
-        raise HTTPException(status_code=400, detail="不能删除自己的账号")
-    # 3. 执行删除
-    if not delete_user(uid):
-        raise HTTPException(status_code=404, detail="用户不存在")
-    return {"message": "用户已删除"}
 
 
 # ── Upload ──
@@ -556,14 +528,10 @@ def serve_index():
     resp.headers["Expires"] = "0"
     return resp
 
+@app.on_event("startup")
+def startup():
+    init_db()
 
-# ── 本地启动（完全保留） ──
 if __name__ == "__main__":
-    import os
-    # 强制读取Railway分配的环境端口
-    listen_port = int(os.getenv("PORT", 80))
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=listen_port
-    )
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
